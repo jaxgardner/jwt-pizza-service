@@ -12,7 +12,7 @@ function randomName() {
 }
 
 beforeAll(async () => {
-  testConfig.db.connection.database = randomName(); 
+  testConfig.db.connection.database = 'pizza'; 
   app = await createApp(testConfig)
   testUser.email = Math.random().toString(36).substring(2, 12) + '@test.com';
   const registerRes = await request(app).post('/api/auth').send(testUser);

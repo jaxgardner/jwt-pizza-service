@@ -24,7 +24,7 @@ let app;
 
 
 beforeAll(async () => { 
-    testConfig.db.connection.database = randomName(); 
+    testConfig.db.connection.database = 'pizza'; 
     app = await createApp(testConfig)
 
     const db = new DB(testConfig);
