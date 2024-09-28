@@ -1,11 +1,11 @@
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
-const config = require('../config.js');
 const { StatusCodeError } = require('../endpointHelper.js');
 const { Role } = require('../model/model.js');
 const dbModel = require('./dbModel.js');
 class DB {
-  constructor() {
+  constructor(config) {
+    this.config = config
     this.initialized = this.initializeDatabase();
   }
 
@@ -32,8 +32,10 @@ class DB {
   async addUser(user) {
     const connection = await this.getConnection();
     try {
+      await connection.beginTransaction(); // Start transaction
+  
       user.password = await bcrypt.hash(user.password, 10);
-
+  
       const userResult = await this.query(connection, `INSERT INTO user (name, email, password) VALUES (?, ?, ?)`, [user.name, user.email, user.password]);
       const userId = userResult.insertId;
       for (const role of user.roles) {
@@ -49,9 +51,14 @@ class DB {
           }
         }
       }
+  
+      await connection.commit(); // Commit transaction
       return { ...user, id: userId, password: undefined };
+    } catch (error) {
+      await connection.rollback(); // Rollback transaction on error
+      throw error;
     } finally {
-      connection.end();
+      connection.end(); // Ensure connection is closed
     }
   }
 
@@ -130,8 +137,8 @@ class DB {
   async getOrders(user, page = 1) {
     const connection = await this.getConnection();
     try {
-      const offset = this.getOffset(page, config.db.listPerPage);
-      const orders = await this.query(connection, `SELECT id, franchiseId, storeId, date FROM dinerOrder WHERE dinerId=? LIMIT ${offset},${config.db.listPerPage}`, [user.id]);
+      const offset = this.getOffset(page, this.config.db.listPerPage);
+      const orders = await this.query(connection, `SELECT id, franchiseId, storeId, date FROM dinerOrder WHERE dinerId=? LIMIT ${offset},${this.config.db.listPerPage}`, [user.id]);
       for (const order of orders) {
         let items = await this.query(connection, `SELECT id, menuId, description, price FROM orderItem WHERE orderId=?`, [order.id]);
         order.items = items;
@@ -305,14 +312,14 @@ class DB {
 
   async _getConnection(setUse = true) {
     const connection = await mysql.createConnection({
-      host: config.db.connection.host,
-      user: config.db.connection.user,
-      password: config.db.connection.password,
-      connectTimeout: config.db.connection.connectTimeout,
+      host: this.config.db.connection.host,
+      user: this.config.db.connection.user,
+      password: this.config.db.connection.password,
+      connectTimeout: this.config.db.connection.connectTimeout,
       decimalNumbers: true,
     });
     if (setUse) {
-      await connection.query(`USE ${config.db.connection.database}`);
+      await connection.query(`USE ${this.config.db.connection.database}`);
     }
     return connection;
   }
@@ -324,8 +331,8 @@ class DB {
         const dbExists = await this.checkDatabaseExists(connection);
         console.log(dbExists ? 'Database exists' : 'Database does not exist');
 
-        await connection.query(`CREATE DATABASE IF NOT EXISTS ${config.db.connection.database}`);
-        await connection.query(`USE ${config.db.connection.database}`);
+        await connection.query(`CREATE DATABASE IF NOT EXISTS ${this.config.db.connection.database}`);
+        await connection.query(`USE ${this.config.db.connection.database}`);
 
         for (const statement of dbModel.tableCreateStatements) {
           await connection.query(statement);
@@ -339,15 +346,14 @@ class DB {
         connection.end();
       }
     } catch (err) {
-      console.error(JSON.stringify({ message: 'Error initializing database', exception: err.message, connection: config.db.connection }));
+      console.error(JSON.stringify({ message: 'Error initializing database', exception: err.message, connection: this.config.db.connection }));
     }
   }
 
   async checkDatabaseExists(connection) {
-    const [rows] = await connection.execute(`SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`, [config.db.connection.database]);
+    const [rows] = await connection.execute(`SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?`, [this.config.db.connection.database]);
     return rows.length > 0;
   }
 }
 
-const db = new DB();
-module.exports = { Role, DB: db };
+module.exports = { Role, DB };
