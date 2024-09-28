@@ -1,6 +1,5 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const config = require('../config.js');
 const { asyncHandler } = require('../endpointHelper.js');
 const { Role } = require('../database/database.js');
 
@@ -18,7 +17,7 @@ async function setAuthUser(db, req, res, next) {
     try {
       if (await db.isLoggedIn(token)) {
         // Check the database to make sure the token is valid.
-        req.user = jwt.verify(token, config.jwtSecret);
+        req.user = jwt.verify(token, db.config.jwtSecret);
         req.user.isRole = (role) => !!req.user.roles.find((r) => r.role === role);
       }
     } catch {
@@ -128,7 +127,7 @@ function createAuthRouter(db) {
   );
 
   async function setAuth(user) {
-    const token = jwt.sign(user, config.jwtSecret);
+    const token = jwt.sign(user, db.config.jwtSecret);
     await db.loginUser(user.id, token);
     return token;
   }
