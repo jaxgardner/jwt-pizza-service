@@ -7,10 +7,15 @@ let testUserAuthToken;
 let userId;
 let app;
 
-
+function randomName() {
+  return Math.random().toString(36).substring(2, 12);
+}
 
 beforeAll(async () => {
-  testConfig.db.connection.database = 'pizza'; 
+  if(!testConfig.db.connection.database) {
+    testConfig.db.connection.database = randomName(); 
+  }
+
   app = await createApp(testConfig)
   testUser.email = Math.random().toString(36).substring(2, 12) + '@test.com';
   const registerRes = await request(app).post('/api/auth').send(testUser);
