@@ -7,9 +7,7 @@ let testUserAuthToken;
 let userId;
 let app;
 
-function randomName() {
-  return Math.random().toString(36).substring(2, 12);
-}
+
 
 beforeAll(async () => {
   testConfig.db.connection.database = 'pizza'; 
