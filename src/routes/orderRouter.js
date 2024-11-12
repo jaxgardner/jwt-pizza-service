@@ -2,7 +2,7 @@ const express = require('express');
 const { Role } = require('../database/database.js');
 const { asyncHandler, StatusCodeError } = require('../endpointHelper.js');
 
-function createOrderRouter(db, authRouter, config) { 
+function createOrderRouter(db, authRouter, config, metrics) { 
   const orderRouter = express.Router();
 
   orderRouter.endpoints = [
@@ -85,6 +85,7 @@ function createOrderRouter(db, authRouter, config) {
       });
       const j = await r.json();
       if (r.ok) {
+        metrics.incrementTotalRevenue(order.items);
         res.send({ order, jwt: j.jwt, reportUrl: j.reportUrl });
       } else {
         res.status(500).send({ message: 'Failed to fulfill order at factory', reportUrl: j.reportUrl });

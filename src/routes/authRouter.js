@@ -27,7 +27,7 @@ async function setAuthUser(db, req, res, next) {
   next();
 }
 
-function createAuthRouter(db) {
+function createAuthRouter(db, metrics) {
 
   const authRouter = express.Router();
 
@@ -80,6 +80,7 @@ function createAuthRouter(db) {
     asyncHandler(async (req, res) => {
       const { name, email, password } = req.body;
       if (!name || !email || !password) {
+        metrics.incrementFailedAuthentications()
         return res.status(400).json({ message: 'name, email, and password are required' });
       }
       const user = await db.addUser({ name, email, password, roles: [{ role: Role.Diner }] });
@@ -94,6 +95,12 @@ function createAuthRouter(db) {
     asyncHandler(async (req, res) => {
       const { email, password } = req.body;
       const user = await db.getUser(email, password);
+      if(user) {
+        metrics.incrementSuccessfulAuthentications();
+        metrics.incrementActiveUsers();
+      } else {
+        metrics.incrementFailedAuthentications();
+      }
       const auth = await setAuth(user);
       res.json({ user: user, token: auth });
     })
@@ -105,6 +112,7 @@ function createAuthRouter(db) {
     authRouter.authenticateToken,
     asyncHandler(async (req, res) => {
       clearAuth(req);
+      metrics.decrementActiveUsers();
       res.json({ message: 'logout successful' });
     })
   );

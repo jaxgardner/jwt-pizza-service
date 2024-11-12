@@ -4,10 +4,11 @@ const { createOrderRouter } = require('./routes/orderRouter.js');
 const { createFranchiseRouter } = require('./routes/franchiseRouter.js');
 const version = require('./version.json');
 const {DB} = require('./database/database.js'); // Import the DB class
+const  metrics = require('./metrics'); // Import the Metrics class
 
 async function createApp(config) {
   const app = express();
-  const db = new DB(config); // Create an instance of DB with the configuration
+  const db = new DB(config, metrics); // Create an instance of DB with the configuration
   await db.initialized
   app.use(express.json());
   app.use((req, res, next) => setAuthUser(db, req, res, next)); 
@@ -19,13 +20,14 @@ async function createApp(config) {
     next();
   });
 
+  app.use((req, res, next) => metrics.collectRequest(req, res, next)); 
 
   const apiRouter = express.Router();
   app.use('/api', apiRouter);
 
-  const {authRouter } = createAuthRouter(db);
-  const {orderRouter} = createOrderRouter(db, authRouter, config);
-  const {franchiseRouter} = createFranchiseRouter(db, authRouter);
+  const { authRouter } = createAuthRouter(db, metrics);
+  const { orderRouter } = createOrderRouter(db, authRouter, config, metrics);
+  const { franchiseRouter } = createFranchiseRouter(db, authRouter);
 
   apiRouter.use('/auth', (req, res, next) => {
     req.db = db;

@@ -4,9 +4,10 @@ const { StatusCodeError } = require('../endpointHelper.js');
 const { Role } = require('../model/model.js');
 const dbModel = require('./dbModel.js');
 class DB {
-  constructor(config) {
-    this.config = config
+  constructor(config, metrics) {
+    this.config = config;
     this.initialized = this.initializeDatabase();
+    this.metrics = metrics;
   }
 
   async getMenu() {
@@ -68,6 +69,7 @@ class DB {
       const userResult = await this.query(connection, `SELECT * FROM user WHERE email=?`, [email]);
       const user = userResult[0];
       if (!user || !(await bcrypt.compare(password, user.password))) {
+        this.metrics.incrementFailedAuthentications();
         throw new StatusCodeError('unknown user', 404);
       }
 
