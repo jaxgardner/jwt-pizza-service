@@ -5,12 +5,14 @@ const { createFranchiseRouter } = require('./routes/franchiseRouter.js');
 const version = require('./version.json');
 const {DB} = require('./database/database.js'); // Import the DB class
 const  metrics = require('./metrics'); // Import the Metrics class
+const logger = require('./logger'); // Import the Logger class
 
 async function createApp(config) {
   const app = express();
   const db = new DB(config, metrics); // Create an instance of DB with the configuration
   await db.initialized
   app.use(express.json());
+  app.use(logger.httpLogger);
   app.use((req, res, next) => setAuthUser(db, req, res, next)); 
   app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -21,6 +23,7 @@ async function createApp(config) {
   });
 
   app.use((req, res, next) => metrics.collectRequest(req, res, next)); 
+
 
   const apiRouter = express.Router();
   app.use('/api', apiRouter);
@@ -56,6 +59,11 @@ async function createApp(config) {
     res.json({
       message: 'welcome to JWT Pizza',
     });
+  });
+
+  app.use((err, req, res, next) => {
+    logger.log('error', 'unhandled', { message: err.message, path: err.stack });
+    res.status(500).json({ message: 'Internal Server Error' });
   });
 
   return app;
