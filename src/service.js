@@ -61,7 +61,7 @@ async function createApp(config) {
     });
   });
 
-  app.use((err, req, res, next) => {
+  app.use((err, req, res,) => {
     logger.log('error', 'unhandled', { message: err.message, path: err.stack });
     res.status(500).json({ message: 'Internal Server Error' });
   });
